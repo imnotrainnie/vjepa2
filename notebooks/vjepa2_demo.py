@@ -30,7 +30,11 @@ def load_pretrained_vjepa_pt_weights(model, pretrained_weights):
     pretrained_dict = {k.replace("backbone.", ""): v for k, v in pretrained_dict.items()}
     msg = model.load_state_dict(pretrained_dict, strict=False)
     print("Pretrained weights found at {} and loaded with msg: {}".format(pretrained_weights, msg))
-
+    # # 👇 ===== 加在这里 ===== 👇
+    # print(f"\n[DEBUG] PT Model Missing keys: {len(msg.missing_keys)} 个")
+    # if len(msg.missing_keys) > 0:
+    #     print(f"[DEBUG] 缺失的键前 10 个: {msg.missing_keys[:10]}\n")
+    # # 👆 ==================== 👆
 
 def load_pretrained_vjepa_classifier_weights(model, pretrained_weights):
     # Load weights of the VJEPA2 classifier
@@ -64,14 +68,26 @@ def get_video():
 
 
 def forward_vjepa_video(model_hf, model_pt, hf_transform, pt_transform):
-    # Run a sample inference with VJEPA
     with torch.inference_mode():
-        # Read and pre-process the image
-        video = get_video()  # T x H x W x C
-        video = torch.from_numpy(video).permute(0, 3, 1, 2)  # T x C x H x W
+        video = get_video()  
+        video = torch.from_numpy(video).permute(0, 3, 1, 2)  
+        
         x_pt = pt_transform(video).cuda().unsqueeze(0)
         x_hf = hf_transform(video, return_tensors="pt")["pixel_values_videos"].to("cuda")
-        # Extract the patch-wise features from the last layer
+        
+# 👇 ===== 修改后的数据对比代码 ===== 👇
+        print(f"\n[DEBUG] PT Transform 数据均值: {x_pt.mean().item():.4f}, 标准差: {x_pt.std().item():.4f}")
+        print(f"[DEBUG] HF Transform 数据均值: {x_hf.mean().item():.4f}, 标准差: {x_hf.std().item():.4f}")
+        print(f"[DEBUG] PT Shape: {x_pt.shape}, HF Shape: {x_hf.shape}")
+        
+        # 将 HF 的 [B, T, C, H, W] 转换为 [B, C, T, H, W] 以对齐 PT
+        x_hf_aligned = x_hf.permute(0, 2, 1, 3, 4)
+        
+        # 对比像素级差异
+        input_diff = torch.abs(x_pt - x_hf_aligned).sum()
+        print(f"[DEBUG] 输入数据绝对值差异: {input_diff:.4f}\n")
+        # 👆 ========================================= 👆
+
         out_patch_features_pt = model_pt(x_pt)
         out_patch_features_hf = model_hf.get_vision_features(x_hf)
 
@@ -102,7 +118,7 @@ def run_sample_inference():
         "facebook/vjepa2-vitg-fpc64-384"  # Replace with your favored model, e.g. facebook/vjepa2-vitg-fpc64-384
     )
     # Path to local PyTorch weights
-    pt_model_path = "YOUR_MODEL_PATH"
+    pt_model_path = "/data/vjepa2/vitg-384.pt"
 
     sample_video_path = "sample_video.mp4"
     # Download the video if not yet downloaded to local path
@@ -132,7 +148,19 @@ def run_sample_inference():
     out_patch_features_hf, out_patch_features_pt = forward_vjepa_video(
         model_hf, model_pt, hf_transform, pt_video_transform
     )
-
+    # fake_input = torch.ones(1, 3, 64, 384, 384).cuda()
+    # # 👇 ===== 加在这里：对比第一层输出 ===== 👇
+    # # with torch.no_grad():
+    # #     try:
+    # #         pt_patch = model_pt.patch_embed(fake_input)
+    # #         hf_patch = model_hf.embeddings.patch_embeddings(fake_input) 
+    # #         print(f"[DEBUG] FAKE Patch Embed Diff: {torch.abs(pt_patch - hf_patch).sum():.6f}")
+    # #     except Exception as e:
+    # #         print(f"[DEBUG] Patch 对比失败，可能是 HF 属性名不同: {e}")
+    # # 👆 =================================== 👆
+    # out_pt = model_pt(fake_input)
+    # out_hf = model_hf.get_vision_features(fake_input) # 确保 HF 接收张量
+    # print(f"FAKE Absolute difference sum:  {torch.abs(out_pt - out_hf).sum():.6f}")
     print(
         f"""
         Inference results on video:
@@ -144,7 +172,7 @@ def run_sample_inference():
     )
 
     # Initialize the classifier
-    classifier_model_path = "YOUR_ATTENTIVE_PROBE_PATH"
+    classifier_model_path = "/data/vjepa2/ssv2-vitg-384-64x2x3.pt"
     classifier = (
         AttentiveClassifier(embed_dim=model_pt.embed_dim, num_heads=16, depth=4, num_classes=174).cuda().eval()
     )
