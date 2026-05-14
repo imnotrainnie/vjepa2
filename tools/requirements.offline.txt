@@ -1,0 +1,11 @@
+torch
+torchvision
+pandas
+Pillow
+tqdm
+timm
+einops
+numpy
+scikit-learn
+matplotlib
+transformers

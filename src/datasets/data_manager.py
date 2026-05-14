@@ -85,4 +85,24 @@ def init_data(
             log_dir=log_dir,
         )
 
+    elif data.lower() == "multimodal":
+        from src.datasets.multimodal_dataset import make_multimodal_dataset
+
+        dataset, data_loader, dist_sampler = make_multimodal_dataset(
+            jsonl_path=root_path,
+            batch_size=batch_size,
+            img_size=384,
+            video_transform=transform,
+            num_workers=num_workers,
+            pin_memory=pin_mem,
+            drop_last=drop_last,
+            shuffle=training,
+            world_size=world_size,
+            rank=rank,
+            persistent_workers=persistent_workers,
+        )
+
+    else:
+        raise ValueError(f"Unsupported dataset type: {data}")
+
     return (data_loader, dist_sampler)

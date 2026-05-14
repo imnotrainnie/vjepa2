@@ -1,0 +1,83 @@
+model:
+  v_encoder:
+    checkpoint_path: "/data/vjepa2/vjepa2_1_vitb_dist_vitG_384.pt"
+    img_size: 384
+    patch_size: 16
+    tubelet_size: 2
+    num_frames: 32
+    embed_dim: 768
+    freeze: true
+  l_encoder:
+    model_name: "google/siglip-large-patch16-384"
+    max_length: 64
+    embed_dim: 1024
+    freeze: true
+    local_files_only: false
+  projectors:
+    shared_dim: 512
+    hidden_dim: 1024
+  predictor:
+    predictor_dim: 384
+    depth: 12
+    num_heads: 8
+    mlp_ratio: 4.0
+    use_3d_pos_for_video: true
+
+data:
+  train_jsonl: "/data/eku/vjepa_state_transitions.jsonl"
+  val_jsonl: null
+  val_split: 0.1
+  split_seed: 0
+  img_size: 384
+  batch_size: 4
+  num_workers: 2
+  pin_memory: true
+  persistent_workers: false
+  strict_frames: true
+
+training:
+  num_epochs: 100
+  log_interval: 100
+  val_interval: 1
+  save_interval: 10
+  optimizer:
+    type: "AdamW"
+    lr: 0.0001
+    predictor_lr: 0.00005
+    betas: [0.9, 0.999]
+    weight_decay: 0.05
+  scheduler:
+    type: "WarmupCosine"
+    warmup_ratio: 0.1
+    min_lr: 0.000001
+  loss:
+    lambda_sigreg: 0
+    sigreg_knots: 17
+    sigreg_num_proj: 1024
+  grad_clip: 1.0
+
+distributed:
+  enabled: false
+  backend: "nccl"
+  find_unused_parameters: true
+
+logging:
+  save_dir: "./checkpoints"
+  log_dir: "./logs"
+  wandb:
+    enabled: false
+    project: "multimodal-jepa"
+  swanlab:
+    enabled: true
+    project: "multimodal-jepa"
+    workspace: null
+    experiment_name: null
+    description: "Multimodal JEPA training"
+    group: null
+    tags: ["vjepa", "multimodal", "jepa"]
+    mode: "cloud"
+    logdir: "./logs/swanlab"
+    id: null
+    resume: "allow"
+    log_on_all_ranks: false
+    parallel: "shared"
