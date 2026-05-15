@@ -18,7 +18,7 @@ model:
     hidden_dim: 1024
   predictor:
     predictor_dim: 384
-    depth: 12
+    depth: 2
     num_heads: 8
     mlp_ratio: 4.0
     use_3d_pos_for_video: true
