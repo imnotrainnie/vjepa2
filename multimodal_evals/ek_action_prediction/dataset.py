@@ -1,3 +1,4 @@
+# Implements EK_PLAN_PART1 §2
 import json
 import random
 from dataclasses import dataclass
@@ -162,6 +163,9 @@ def collate_fn(batch: List[Dict[str, object]]) -> Dict[str, object]:
         "ctx_mod": [item["ctx_mod"] for item in batch],
         "tgt_mod": [item["tgt_mod"] for item in batch],
     }
+
+
+multi_pair_collate_fn = collate_fn
 
 
 def create_dataloaders(

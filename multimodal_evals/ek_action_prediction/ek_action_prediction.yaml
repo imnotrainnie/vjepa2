@@ -1,8 +1,15 @@
+eval_name: multimodal_evals.ek_action_prediction
 seed: 0
-num_epochs: 5
-log_interval: 10
+num_epochs: 20
+log_interval: 5
 val_interval: 1
+save_interval: 5
 use_bfloat16: true
+val_only: false
+resume: false
+
+folder: /data/vjepa2/logs/ek_action_prediction
+tag: linear_probe_run1
 
 model:
   checkpoint: /data/vjepa2/checkpoints/checkpoint_epoch_100.pt
@@ -30,11 +37,16 @@ model:
 
 classifier:
   num_blocks: 2
-  num_heads: 16
+  num_heads: 8
 
 optimization:
-  lr: 0.001
-  weight_decay: 0.05
+  multihead_kwargs:
+    - lr: 0.001
+      start_lr: 0.0001
+      final_lr: 0.00001
+      warmup: 1
+      weight_decay: 0.05
+      final_weight_decay: 0.05
 
 data:
   jsonl_path: /data/eku/vjepa_state_transitions.jsonl
